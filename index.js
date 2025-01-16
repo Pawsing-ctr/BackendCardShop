@@ -12,7 +12,7 @@ app.use(cors());
 app.use(express.json());
 
 // запись для админки
-app.post("/api/data", (req, res) => {
+app.post("/api/products", (req, res) => {
   const newData = req.body; // Получение данных из тела запроса
   storedData.push(newData); // Сохранение данных в памяти
   res
@@ -21,7 +21,7 @@ app.post("/api/data", (req, res) => {
 });
 
 // Получение данных для пользователя
-app.get("/api/data", (req, res) => {
+app.get("/api/products", (req, res) => {
   res.json(storedData); // Возврат сохранённых данных
 });
 
