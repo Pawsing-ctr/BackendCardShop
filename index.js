@@ -7,7 +7,7 @@ const path = require("path");
 const app = express();
 const PORT = 3005;
 
-const storedData = [];
+let storedData = [];
 
 app.use(cors());
 app.use(express.json());
@@ -17,7 +17,6 @@ if (!fs.existsSync(uploadFolder)) {
   fs.mkdirSync(uploadFolder);
 }
 
-// Настройка хранилища Multer
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     cb(null, "uploads/");
@@ -52,6 +51,29 @@ app.post("/api/products", upload.single("image"), (req, res) => {
 
 app.get("/api/products", (req, res) => {
   res.json(storedData);
+});
+
+app.delete("/api/products/:id", (req, res) => {
+  const id = req.params.id;
+  const index = storedData.findIndex((product) => product.id === id);
+
+  if (index !== -1) {
+    const deletedProduct = storedData[index];
+    storedData = storedData.filter((product) => product.id !== id);
+
+    if (deletedProduct.photo) {
+      const imagePath = deletedProduct.photo.replace(
+        `http://localhost:${PORT}/uploads/`,
+        ""
+      );
+      fs.unlink(path.join(uploadFolder, imagePath), (err) => {
+        if (err) console.error("Ошибка при удалении файла:", err);
+      });
+    }
+    res.json({ message: "Продукт успешно удален", deletedProduct });
+  } else {
+    res.status(404).json({ message: "Продукт не найден" });
+  }
 });
 
 app.listen(PORT, () => {
