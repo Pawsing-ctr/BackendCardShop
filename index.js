@@ -1,7 +1,13 @@
 const express = require("express");
 const cors = require("cors");
 const multer = require("multer");
-const { Pool } = require("pg");
+const { Pool, Client } = require("pg");
+require("dotenv").config();
+const bcrypt = require("bcrypt");
+
+const user = process.env.USER;
+const database = process.env.DATABASE;
+const password = process.env.PASSWORD;
 
 const app = express();
 const PORT = 3005;
@@ -10,10 +16,10 @@ app.use(cors());
 app.use(express.json());
 
 const pool = new Pool({
-  user: "postgres",
+  user,
   host: "localhost",
-  database: "productsdatabase",
-  password: "postgres",
+  database,
+  password,
   port: 5432,
 });
 
@@ -121,6 +127,50 @@ app.delete("/api/products/:id", async (req, res) => {
   } catch (error) {
     console.error("Ошибка при удалении продукта:", error);
     res.status(500).json({ message: "Ошибка сервера" });
+  }
+});
+
+app.post("/api/users", async (req, res) => {
+  console.log("Received registration request:", req.body);
+  const { username, email, password } = req.body;
+
+  if (!username || !email || !password) {
+    return res.status(400).json({ message: "All fields are required" });
+  }
+
+  try {
+    const existingUser = await pool.query(
+      "SELECT id FROM userstable WHERE username = $1 OR email = $2",
+      [username, email]
+    );
+
+    if (existingUser.rows.length > 0) {
+      return res.status(400).json({
+        message: "User with this username or email already exists",
+      });
+    }
+
+    const passwordHash = await bcrypt.hash(password, 10);
+
+    const result = await pool.query(
+      "INSERT INTO userstable (username, email, password_hash) VALUES ($1, $2, $3) RETURNING id, username, email, created_at",
+      [username, email, passwordHash]
+    );
+
+    const user = result.rows[0];
+
+    res.status(201).json({
+      message: "User registered successfully!",
+      data: {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        created_at: user.created_at,
+      },
+    });
+  } catch (error) {
+    console.error("Error registering user:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
   }
 });
 
